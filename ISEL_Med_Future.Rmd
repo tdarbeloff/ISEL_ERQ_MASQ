@@ -1,0 +1,195 @@
+---
+title: "Mediation Stress ISEL "
+author: "Tracy Darbeloff"
+date: "4/26/2018"
+bibliography: "sample.bib"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(car)
+library(ggplot2)
+library(haven)
+library(jtools)
+library(stats)
+library(ggpubr)
+library(dbplyr)
+library(lm.beta)
+library(investr)
+library(MASS)
+library(lmSupport)
+library(caret)
+source("ISEL_descriptives.R")
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+```
+testing for git
+$R^2$
+$\beta$
+
+The data was box cox transformed due to a severe positive skew (*p*=`r shapiro_test_results$p.value`).
+
+We did this cool thing that someone did [@kim2018link].
+
+Create ratio score for ERQ use of regulation techniques and MASQ timepoints 
+```{r timepoints}
+d$ERQ_Tend <- d$ERQ_Reap/d$ERQ_Sup
+d$ERQ_Tend_log <- log(d$ERQ_Tend)
+d$ERQtend_z <- scale(d$ERQ_Tend_log)[,1]
+
+fit1 <- lm(MASQtot_T3 ~ MASQTot_T1, d) %>% tidy()
+d$Resid_MASQ <- fit1$residuals
+
+```
+
+``` {r pvals}
+fit1_pval <- ifelse(fit1$p.value[2]<.001,"*p*<.001","*p*=fit1$p.value[2]")
+```
+MASQ at time point one and timepoint two were significantly correlated (*b* = `r fit1$estimate[2]`, `r fit1_pval`).
+
+```{r histMASQ}
+hist(d$MASQTot_T1)
+```
+
+
+Check gender differences
+```{r gendiff}
+d$Sex_rc <- recode(d$Sex, "1 = '1'; 2 = '0'")
+
+d$Sex_fac <- factor(d$Sex_rc, levels = c("0", "1"))
+
+d$ISEL_c <- d$ISEL - mean(d$ISEL)
+d$ERQRep_c <- d$ERQ_Reap - mean(d$ERQ_Reap)
+d$ERQSup_c <- d$ERQ_Sup - mean(d$ERQ_Sup)
+d$MASQtot_T3_c <- d$MASQtot_T3 - mean(d$MASQtot_T3)
+d$MASQTot_T1_c <- d$MASQTot_T1 - mean(d$MASQTot_T1)
+d$ERQ_Tend_c <- d$ERQ_Tend - mean(d$ERQ_Tend)
+
+ERQRep_Gen <- lm(ERQRep_c ~ Sex_fac, d)
+summary(ERQRep_Gen)
+
+ERQSup_Gen <- lm(ERQSup_c ~ Sex_fac, d)
+summary(ERQSup_Gen)
+
+ERQTend_Gen <- lm(ERQ_Tend_c ~ Sex_fac, d)
+summary(ERQTend_Gen)
+
+MASQT1_Gen <- lm(MASQTot_T1_c ~ Sex_fac, d)
+summary(MASQT1_Gen)
+
+MASQT3_Gen <- lm(MASQtot_T3_c ~ Sex_fac, d)
+summary(MASQT3_Gen)
+
+ISEL_Gen <- lm(ISEL_c ~ Sex_fac, d)
+summary(ISEL_Gen)
+```
+
+
+
+check if emotion regulation tendencies are correlated with future changes in depression and anxiety symptoms (path C)
+```{r path c and c`}
+summary(lm(Resid_MASQ ~ ERQtend_z, d))
+summ(lm(MASQtot_T3z ~ ERQtend_z+ MASQTot_T1z, d))
+
+PathMed <- lm(MASQtot_T3z ~ ISEL_z + ERQtend_z + MASQTot_T1z + Sex + Age + AnyDx, d)
+summary(PathMed)
+```
+
+It is not. But that isn't the end of the world. Path C does not need to be significant.
+
+Path A (ERQ tendency (pos = use reappraisal) correlated with ISEL)
+```{r path A}
+PathA <- lm(ISEL_z ~ ERQtend_z + Age + Sex + AnyDx, d)
+summary(PathA)
+```
+
+Path B (ISEL predicting changes in MASQ)
+```{r Path B}
+PathB <- lm(MASQtot_T3z ~ ISEL_z + MASQTot_T1z + Age + Sex + AnyDx, d)
+summary(PathB)
+
+```
+
+
+Path A for Reappraisal and Suppression separately
+```{r path A sep}
+PathA_rep <- lm(ISEL_z ~ ERQRep_z*Sex_fac + Age + AnyDx, d)
+summary(PathA_rep)
+
+PathA_sup <- lm(ISEL_z ~ ERQSup_z*Sex_fac + Age + AnyDx, d)
+summary(PathA_sup)
+```
+
+
+
+Let's split by gender
+```{r gen}
+d_fem <- subset(d, Sex_fac == 0)
+d_male <- subset(d, Sex_fac==1)
+```
+
+
+Lets look at women vs Men with reappraisal
+```{r reap women}
+
+FemRep_A <- lm(ISEL_z ~ ERQRep_z + Age + AnyDx, d_fem)
+summary(FemRep_A)
+MaleRep_A <- lm(ISEL_z ~ ERQRep_z + Age + AnyDx, d_male)
+summary(MaleRep_A)
+
+
+
+Fem_B <- lm( MASQtot_T3z ~ ISEL_z + MASQTot_T1z + Age + AnyDx, d_fem)
+summary(Fem_B)
+Male_B <- lm( MASQtot_T3z ~ ISEL_z + MASQTot_T1z + Age + AnyDx, d_male)
+summary(Male_B)
+```
+
+Lets look at women vs men with suppression
+```{r sup women}
+
+FemSup_A <- lm(ISEL_z ~ ERQSup_z + Age + AnyDx, d_fem)
+summary(FemSup_A)
+MaleSup_A <- lm(ISEL_z ~ ERQSup_z + Age + AnyDx, d_male)
+summary(MaleSup_A)
+
+
+summary(Fem_B)
+summary(Male_B)
+```
+
+
+
+
+
+Split by Dx, see any changes?
+```{r Dx}
+d_dx <- subset(d, AnyDx==1)
+dx_c <- lm(MASQtot_T3z ~ ERQRep_z + MASQTot_T1z + Sex + Age, d_dx)
+summary(dx_c)
+dx_a <- lm(ISEL_z ~ ERQRep_z + Sex + Age, d_dx)
+summary(dx_a)
+dx_med <- lm(MASQtot_T3z ~ ISEL_z + MASQTot_T1z+ Sex_fac + Age, d_dx)
+summary(dx_med)
+```
+
+
+Find individual variances
+```{r resid variance}
+reg <- lm(MASQtot_T3z ~ MASQTot_T1z + Age, d)
+d$Resid_Var <- reg$residuals
+hist(d$Resid_Var)
+
+Reap <- lm(Resid_Var ~ ERQRep_z + Sex, d)
+summary(Reap)
+
+Sup <- lm(Resid_Var ~ ERQSup_z + Sex, d)
+summary(Sup)
+
+Isel <- lm(Resid_Var~ ISEL_z + Sex, d)
+summary(Isel)
+```
+
+
+
+
