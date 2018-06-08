@@ -1,0 +1,82 @@
+---
+title: "ISEL Future Model Resids"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+setwd("N:/DNS.01/Analysis/Tracy/ISEL")
+library(tidyverse)
+library(car)
+library(ggplot2)
+library(haven)
+library(jtools)
+library(stats)
+library(ggpubr)
+library(dbplyr)
+library(lm.beta)
+library(investr)
+library(MASS)
+library(lmSupport)
+library(caret)
+source("ISEL_descriptives.R")
+source("hilow.R")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+Check residuals for Path A
+```{r patha}
+d$resid_a <- PathA$residuals
+d$predicted_a <- PathA$fitted.values
+d$stud.resid_a <- rstudent(PathA)
+d$stand.resid_a <- rstandard(PathA)
+d$hat_a <- hatvalues(PathA)
+
+#Evaluate assumptions of normality and homoscedasticity (constant variance) for residuals
+hist(d$resid_a)
+ggplot(d, aes(y=resid_a, x=predicted_a, label = rownames(d))) + geom_point() +
+  geom_smooth(method="loess") + geom_smooth(method="lm", se=FALSE, color="red") +
+  geom_text(hjust=0, nudge_x=.05)
+
+plot(resid_a^2 ~ ERQtend_z, data = d) + abline(0,0)
+
+qqPlot(PathA, main="QQ Plot")
+avPlot(PathA, "ERQtend_z")
+
+
+#Any cases with residuals that are large enough to be of potential concern?
+outlierTest(PathA)
+hilow(c("stud.resid_a", "stand.resid_a"),d)
+hilow("hat_a", d)
+influencePlot(PathA)
+```
+
+
+
+Check residuals for Path B
+```{r pathb}
+d$resid_b <- PathB$residuals
+d$predicted_b<- PathB$fitted.values
+d$stud.resid_b <- rstudent(PathB)
+d$stand.resid_b <- rstandard(PathB)
+d$hat_b <- hatvalues(PathB)
+
+#Evaluate assumptions of normality and homoscedasticity (constant variance) for residuals
+hist(d$resid_b)
+ggplot(d, aes(y=resid_b, x=predicted_b, label = rownames(d))) + geom_point() +
+  geom_smooth(method="loess") + geom_smooth(method="lm", se=FALSE, color="red") +
+  geom_text(hjust=0, nudge_x=.05)
+
+plot(resid_b^2 ~ ISEL_z, data = d) + abline(0,0)
+
+qqPlot(PathB, main="QQ Plot")
+avPlot(PathB, "ISEL_z")
+
+
+#Any cases with residuals that are large enough to be of potential concern?
+outlierTest(PathB)
+hilow(c("stud.resid_b", "stand.resid_b"),d)
+hilow("hat_b", d)
+influencePlot(PathB)
+```
